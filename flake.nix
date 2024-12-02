@@ -15,6 +15,7 @@
     default = pkgs.mkShell {
      nativeBuildInputs = with pkgs; [
       python3
+      uv
     ];
 
     shellHook = "echo Welcome to python environment";
