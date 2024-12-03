@@ -1,13 +1,14 @@
-from db import CardDatabase, Card
+from db import CardDB, Card
 import asyncio
 
 async def main():
-    database = await CardDatabase.ConnectDatabase()
+    database = CardDB("cards.db")
 
+    await database.init()
     values = ['John', 'Jane', 'Tin', 'Alan']
-    await asyncio.gather(CardDatabase.InsertIntoDatabase(database, values), CardDatabase.ReadDatabaseAndPrint(database))
+    await asyncio.gather(database.InsertIntoDatabase(values), database.ReadDatabaseAndPrint())
 
-    card = await CardDatabase.FetchCardById(database, 1)
+    card = await database.FetchCardById(1)
     if card:
         print(f"Card fetched: {card.name}, {card.top_content}, {card.bottom_content}")
 
