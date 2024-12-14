@@ -44,8 +44,8 @@ class CardDB(DatabaseManager):
 
     async def init(self):
         await self.connect()
-        await self.execute_query("""
-            CREATE TABLE IF NOT EXISTS cards (
+        await self.execute_query(f"""
+            CREATE TABLE IF NOT EXISTS {self.db_name} (
                 id INTEGER PRIMARY KEY,
                 Name TEXT NOT NULL,
                 TopContent TEXT DEFAULT '',
@@ -55,11 +55,11 @@ class CardDB(DatabaseManager):
             )
             """)
 
-    async def InsertIntoDatabase(self, values):
-        await self.execute_many("INSERT INTO cards (Name) VALUES (?)", [(v,) for v in values])
+    async def insertIntoDatabase(self, values):
+        await self.execute_many(f"INSERT INTO {self.db_name} (Name) VALUES (?)", [(v,) for v in values])
 
-    async def ReadDatabase(self):
-        records = await self.fetch_all("SELECT * FROM cards")
+    async def ReadDatabase(self) -> list:
+        records = await self.fetch_all(f"SELECT * FROM {self.db_name}")
 
         cards = []
         for record in records:
@@ -78,8 +78,8 @@ class CardDB(DatabaseManager):
         else:
             print("No cards found.")
 
-    async def FetchCardById(self, card_id):
-        record = await self.fetch_one("SELECT * FROM cards WHERE id = ?", (card_id,))
+    async def FetchCardById(self, card_id) -> Card:
+        record = await self.fetch_one(f"SELECT * FROM {self.db_name} WHERE id = ?", (card_id,))
         if record:
             card = map_record_to_card(record)
             return card
