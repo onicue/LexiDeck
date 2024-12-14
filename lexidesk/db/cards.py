@@ -6,17 +6,39 @@ from datetime import datetime
 CARD_BD_NAME = "cards.db"
 
 class Card:
-    def __init__(self, card_id, name, groups=None, top_content="", bottom_content="", repetition_times=None):
+    def __init__(self, name, groups=[], top_content="", bottom_content="", repetition_times=[], card_id=None):
+        if not isinstance(groups, list):
+            raise ValueError(f"Expected 'groups' to be a list, got {type(groups)}.")
+        if not isinstance(repetition_times, list):
+            raise ValueError(f"Expected 'repetition_times' to be a list, got {type(repetition_times)}.")
+
         self.id = card_id
         self.name = name
         self.top_content = top_content
         self.bottom_content = bottom_content
-        self.groups = groups if groups else []
-        self.repetition_times = repetition_times
-        # (
-        #     [datetime.now().strftime('%Y-%m-%d %H:%M:%S')]
-        #     if repetition_times is None else repetition_times
-        # )
+        self.groups = groups or []
+        self.repetition_times = repetition_times or [datetime.now().strftime('%Y-%m-%d %H:%M:%S')]
+
+    def deserialize_group(self):
+        return ",".join(self.groups)
+
+    def serialize_group(self, groups):
+        self.groups = groups.split(",")
+
+    def deserialize_repetition_times(self):
+        return ",".join(self.repetition_times)
+
+    def serialize_repetition_times(self, groups):
+        self.repetition_times = repetition_times.split(",")
+
+    def getValues(self):
+        return (
+            self.name,
+            self.top_content,
+            self.bottom_content,
+            self.deserialize_group(),
+            self.deserialize_repetition_times(),
+        )
 
 def map_record_to_card(record):
     return Card(
@@ -55,10 +77,20 @@ class CardDB(DatabaseManager):
             )
             """)
 
-    async def insertIntoDatabase(self, values):
-        await self.execute_many(f"INSERT INTO {self.db_name} (Name) VALUES (?)", [(v,) for v in values])
+    async def insertCard(self, card):
+        await self.execute_query(f"""
+            INSERT INTO {self.db_name} (Name, TopContent, BottomContent, Groups, RepetitionTimes)
+            VALUES (?, ?, ?, ?, ?);
+        """, card.getValues)
 
-    async def ReadDatabase(self) -> list:
+    async def insertCards(self, cards):
+        values = [ card.getValues() for card in cards ]
+        await self.execute_many(f"""
+            INSERT INTO {self.db_name} (Name, TopContent, BottomContent, Groups, RepetitionTimes)
+            VALUES (?, ?, ?, ?, ?);
+        """, values)
+
+    async def getCards(self) -> list:
         records = await self.fetch_all(f"SELECT * FROM {self.db_name}")
 
         cards = []
@@ -70,15 +102,16 @@ class CardDB(DatabaseManager):
 
         return cards
 
-    async def ReadDatabaseAndPrint(self):
-        cards = await self.ReadDatabase()
+    # for debug
+    async def __ReadDatabaseAndPrint(self):
+        cards = await self.getCards()
         if cards:
             for card in cards:
                 PrintCard(card)
         else:
             print("No cards found.")
 
-    async def FetchCardById(self, card_id) -> Card:
+    async def getCardById(self, card_id) -> Card:
         record = await self.fetch_one(f"SELECT * FROM {self.db_name} WHERE id = ?", (card_id,))
         if record:
             card = map_record_to_card(record)
@@ -87,3 +120,9 @@ class CardDB(DatabaseManager):
             print(f"No card found with ID: {card_id}")
             return None
 
+    async def deleteCardById(self, card_id: int):
+        await self.execute_query(f"DELETE FROM {self.db_name} WHERE id = ?", card_id)
+
+
+    async def deleteCard(self, card: Card):
+        await self.execute_query(f"DELETE FROM {self.db_name} WHERE id = ?", card.id)
